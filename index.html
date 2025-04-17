@@ -5,12 +5,22 @@
     <title>VR Taman Interaktif</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+        <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.controls.min.js"></script>
   </head>
   <body>
     <a-scene background="color: #87CEEB" shadow="type: pcfsoft">
-      <!-- Kamera -->
-      <a-entity position="0 2 15">
-        <a-camera wasd-controls look-controls></a-camera>
+      
+      <!-- Kamera + cursor -->
+      <a-entity id="cameraRig" position="0 2 15">
+        <a-camera wasd-controls look-controls>
+          <a-cursor
+            fuse="true"
+            fuse-timeout="500"
+            material="color: white; shader: flat"
+            geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+          ></a-cursor>
+        </a-camera>
       </a-entity>
 
       <!-- Aset Model & Suara -->
@@ -21,8 +31,6 @@
         <a-asset-item id="flower" src="assets/models/generic_tulip_flower.glb"></a-asset-item>
         <a-asset-item id="waterfall" src="assets/models/water_fall_fbx.glb"></a-asset-item>
         <a-asset-item id="birds" src="assets/models/birds.glb"></a-asset-item>
-        
-        <!-- Suara air terjun -->
         <audio id="waterfallSound" src="assets/sounds/waterfall.mp3" preload="auto"></audio>
       </a-assets>
 
@@ -45,13 +53,21 @@
       <a-entity gltf-model="#lamp" position="7 0 7" scale="1 1 1" shadow></a-entity>
       <a-entity gltf-model="#lamp" position="-7 0 7" scale="1 1 1" shadow></a-entity>
 
-      <!-- Pohon -->
-      <a-entity gltf-model="#tree" position="-10 2 -10" scale="1.5 1.5 1.5" shadow></a-entity>
-      <a-entity gltf-model="#tree" position="10 2 -10" scale="1.5 1.5 1.5" shadow></a-entity>
-      <a-entity gltf-model="#tree" position="-10 2 10" scale="1.5 1.5 1.5" shadow></a-entity>
-      <a-entity gltf-model="#tree" position="10 2 10" scale="1.5 1.5 1.5" shadow></a-entity>
+      <!-- Pohon (dibungkus dan bisa diklik) -->
+      <a-entity position="-10 2 -10" click-wiggle class="clickable hover-effect">
+        <a-entity gltf-model="#tree" scale="1.5 1.5 1.5" shadow></a-entity>
+      </a-entity>
+      <a-entity position="10 2 -10" click-wiggle class="clickable hover-effect">
+        <a-entity gltf-model="#tree" scale="1.5 1.5 1.5" shadow></a-entity>
+      </a-entity>
+      <a-entity position="-10 2 10" click-wiggle class="clickable hover-effect">
+        <a-entity gltf-model="#tree" scale="1.5 1.5 1.5" shadow></a-entity>
+      </a-entity>
+      <a-entity position="10 2 10" click-wiggle class="clickable hover-effect">
+        <a-entity gltf-model="#tree" scale="1.5 1.5 1.5" shadow></a-entity>
+      </a-entity>
 
-      <!-- Air Terjun + Suara -->
+      <!-- Air Terjun -->
       <a-entity 
         gltf-model="#waterfall" 
         position="0 0 0" 
@@ -63,46 +79,83 @@
       <!-- Burung -->
       <a-entity gltf-model="#birds" position="0 10 -5" scale="0.5 0.5 0.5" animation="property: position; to: 10 10 5; dur: 8000; dir: alternate; loop: true"></a-entity>
 
-      <!-- Bunga tulip -->
+      <!-- Container Bunga -->
       <a-entity id="flower-container"></a-entity>
     </a-scene>
 
-    <!-- Script generate bunga kecil -->
+    <!-- SCRIPT -->
     <script>
+      // Efek klik goyang
+      AFRAME.registerComponent('click-wiggle', {
+        init: function () {
+          this.el.addEventListener('click', () => {
+            this.el.setAttribute('animation__wiggle', {
+              property: 'rotation',
+              to: '0 30 0',
+              dur: 150,
+              dir: 'alternate',
+              loop: 4,
+              easing: 'easeInOutQuad'
+            });
+          });
+        }
+      });
+
+      // Efek hover (opsional)
+      AFRAME.registerComponent('hover-effect', {
+        init: function () {
+          this.el.addEventListener('mouseenter', () => {
+            this.el.setAttribute('scale', '1.1 1.1 1.1');
+          });
+          this.el.addEventListener('mouseleave', () => {
+            this.el.setAttribute('scale', '1 1 1');
+          });
+        }
+      });
+
+      // Spawn bunga secara acak dan interaktif
       AFRAME.registerComponent('spawn-flowers', {
         init: function () {
           const container = document.querySelector('#flower-container');
           const count = 15;
 
           for (let i = 0; i < count; i++) {
-            const flower = document.createElement('a-entity');
-            flower.setAttribute('gltf-model', '#flower');
-            flower.setAttribute('scale', '0.01 0.01 0.01'); // Ukuran sangat kecil
-            flower.setAttribute('shadow', '');
-
+            const flowerWrapper = document.createElement('a-entity');
             const x = (Math.random() - 0.5) * 40;
             const z = (Math.random() - 0.5) * 40;
-            flower.setAttribute('position', `${x} 0 ${z}`);
+            flowerWrapper.setAttribute('position', `${x} 0 ${z}`);
+            flowerWrapper.setAttribute('click-wiggle', '');
+            flowerWrapper.setAttribute('class', 'clickable hover-effect');
 
-            flower.setAttribute('animation', {
-              property: 'rotation',
-              dir: 'alternate',
-              dur: 3000 + Math.random() * 2000,
-              easing: 'easeInOutSine',
-              loop: true,
-              to: `0 ${Math.random() * 20 - 10} 0`
-            });
+            const flower = document.createElement('a-entity');
+            flower.setAttribute('gltf-model', '#flower');
+            flower.setAttribute('scale', '0.01 0.01 0.01');
+            flower.setAttribute('shadow', '');
 
-            const hue = Math.floor(Math.random() * 360);
-            flower.setAttribute('material', `color: hsl(${hue}, 70%, 60%)`);
-
-            container.appendChild(flower);
+            flowerWrapper.appendChild(flower);
+            container.appendChild(flowerWrapper);
           }
         }
       });
 
+      // Mulai saat halaman siap
       document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('#flower-container').setAttribute('spawn-flowers', '');
+      });
+
+      // Zoom in / out dengan scroll mouse
+      document.addEventListener('DOMContentLoaded', () => {
+        const cameraRig = document.querySelector('#cameraRig');
+        
+        window.addEventListener('wheel', (event) => {
+          const zoomSpeed = 0.5;
+          let position = cameraRig.getAttribute('position');
+
+          position.z += event.deltaY * 0.01 * zoomSpeed;
+          position.z = Math.max(1, Math.min(50, position.z)); // batas zoom in dan out
+
+          cameraRig.setAttribute('position', position);
+        });
       });
     </script>
   </body>
